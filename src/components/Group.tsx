@@ -1,5 +1,5 @@
 import React from "react";
-import { User, Users, Star } from "lucide-react";
+import { Users, Star } from "lucide-react";
 import "../styles/HomePage.css";
 
 interface ProfileProps {
@@ -8,6 +8,7 @@ interface ProfileProps {
   fullName: string;
   fun_facts: string;
   points: number;
+  profile_pic: string;
 }
 
 interface GroupProps {
@@ -41,33 +42,59 @@ const Group = ({ mentor, students }: GroupProps) => {
           width: "100%",
         }}
       >
-        <User size={32} style={{ color: "#ffcc00", marginRight: "1.5rem", filter: "drop-shadow(0 0 6px #00fff2)" }} />
+        <img
+          src={mentor.profile_pic || "/default_profile.png"}
+          className="size-14 rounded-full border-2 border-[var(--c3)] mr-3"
+        ></img>
         <div style={{ flex: 1 }}>
-          <div style={{ fontSize: "1.1rem", color: "#00fff2", marginBottom: "0.5rem" }}>
+          <div
+            style={{
+              fontSize: "1.1rem",
+              color: "#00fff2",
+              marginBottom: "0.5rem",
+            }}
+          >
             Mentor: <span style={{ color: "#ffcc00" }}>{mentor.fullName}</span>
           </div>
           <div style={{ fontSize: "0.9rem", color: "#fff" }}>
-            <span style={{ color: "#ffcc00" }}>Fun Fact:</span> {mentor.fun_facts || "-"}
+            <span style={{ color: "#ffcc00" }}>Fun Fact:</span>{" "}
+            {mentor.fun_facts || "-"}
           </div>
         </div>
-        <div style={{ display: "flex", alignItems: "center", marginLeft: "1.5rem" }}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            marginLeft: "1.5rem",
+          }}
+        >
           <Star size={20} style={{ color: "#ffcc00", marginRight: 6 }} />
-          <span style={{ color: "#ffcc00", fontSize: "1.1rem" }}>{mentor.points}</span>
+          <span style={{ color: "#ffcc00", fontSize: "1.1rem" }}>
+            {mentor.points}
+          </span>
         </div>
       </div>
 
       {/* Students List */}
       <div style={{ width: "100%" }}>
-        <div style={{ display: "flex", alignItems: "center", marginBottom: "0.5rem" }}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            marginBottom: "0.5rem",
+          }}
+        >
           <Users size={20} style={{ color: "#00fff2", marginRight: 8 }} />
           <span style={{ color: "#00fff2", fontSize: "1rem" }}>Students:</span>
         </div>
-        <div style={{
-          display: "flex",
-          flexWrap: "wrap",
-          gap: "1.5rem",
-          marginTop: "0.5rem",
-        }}>
+        <div
+          style={{
+            display: "flex",
+            flexWrap: "wrap",
+            gap: "1.5rem",
+            marginTop: "0.5rem",
+          }}
+        >
           {students && students.length > 0 ? (
             students.map((student, idx) => (
               <div
@@ -86,8 +113,21 @@ const Group = ({ mentor, students }: GroupProps) => {
                   alignItems: "flex-start",
                 }}
               >
-                <span style={{ color: "#00fff2", fontWeight: 700 }}>{student.fullName}</span>
-                <span style={{ color: "#fff", margin: "0.5rem 0" }}>{student.fun_facts || "-"}</span>
+                <div className="flex flex-row align-middle items-center">
+                  <img
+                    src={student.profile_pic || "/default_profile.png"}
+                    className="size-10 rounded-full border-2 border-[var(--c3)]"
+                  ></img>
+                  <span
+                    className="ml-3"
+                    style={{ color: "#00fff2", fontWeight: 700 }}
+                  >
+                    {student.fullName}
+                  </span>
+                </div>
+                <span style={{ color: "#fff", margin: "0.5rem 0" }}>
+                  {student.fun_facts || "-"}
+                </span>
               </div>
             ))
           ) : (
