@@ -130,7 +130,7 @@ const BucketListPage = () => {
 
       {/* Bucket Lists */}
       {bucketLists.map((bucketList) => {
-        const isOwnMentorList = authUser.mentor_name === bucketList.mentor_name;
+        const isOwnMentorList = authUser.mentor_name === bucketList.mentor_name || authUser.fullName === bucketList.mentor_name;
         const canEdit = authUser.accountType === "mentor" && isOwnMentorList;
         const canAdd = isOwnMentorList;
 
