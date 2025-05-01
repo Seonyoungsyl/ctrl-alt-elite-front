@@ -1,6 +1,7 @@
 import React from "react";
-import { Users, Star } from "lucide-react";
+import { Users, Star, User } from "lucide-react";
 import "../styles/HomePage.css";
+import FixedImage from "./FixedImage";
 
 interface ProfileProps {
   accountType: string;
@@ -17,6 +18,21 @@ interface GroupProps {
 }
 
 const Group = ({ mentor, students }: GroupProps) => {
+  // Helper function to get initials from a name
+  const getInitials = (name: string) => {
+    return name
+      .split(' ')
+      .map(word => word[0])
+      .join('')
+      .toUpperCase()
+      .substring(0, 2);
+  };
+
+  // Helper to check if profile pic exists
+  const hasProfilePic = (pic: string | null | undefined) => {
+    return pic && pic !== "null" && pic !== "undefined";
+  };
+
   return (
     <div
       style={{
@@ -42,10 +58,19 @@ const Group = ({ mentor, students }: GroupProps) => {
           width: "100%",
         }}
       >
-        <img
-          src={mentor.profile_pic || "/default_profile.png"}
-          className="size-14 rounded-full border-2 border-[var(--c3)] mr-3"
-        ></img>
+        <div className="size-14 rounded-full border-2 border-[var(--c3)] mr-3 flex items-center justify-center bg-gradient-to-r from-[#00fff2] to-[#760a91] overflow-hidden">
+          {hasProfilePic(mentor.profile_pic) ? (
+            <FixedImage
+              src={mentor.profile_pic}
+              alt={`${mentor.fullName} profile`}
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            <div className="flex items-center justify-center w-full h-full text-white font-bold">
+              {getInitials(mentor.fullName) || <User size={24} />}
+            </div>
+          )}
+        </div>
         <div style={{ flex: 1 }}>
           <div
             style={{
@@ -114,10 +139,19 @@ const Group = ({ mentor, students }: GroupProps) => {
                 }}
               >
                 <div className="flex flex-row align-middle items-center">
-                  <img
-                    src={student.profile_pic || "/default_profile.png"}
-                    className="size-10 rounded-full border-2 border-[var(--c3)]"
-                  ></img>
+                  <div className="size-10 rounded-full border-2 border-[var(--c3)] flex items-center justify-center bg-gradient-to-r from-[#00fff2] to-[#760a91] overflow-hidden">
+                    {hasProfilePic(student.profile_pic) ? (
+                      <FixedImage
+                        src={student.profile_pic}
+                        alt={`${student.fullName} profile`}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="flex items-center justify-center w-full h-full text-white font-bold text-xs">
+                        {getInitials(student.fullName) || <User size={16} />}
+                      </div>
+                    )}
+                  </div>
                   <span
                     className="ml-3"
                     style={{ color: "#00fff2", fontWeight: 700 }}

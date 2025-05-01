@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 import { axiosInstance } from "../lib/axios";
 import { useAuthStore } from "../store/useAuthStore";
-import { ClipboardList, CheckCircle2, Circle, PlusCircle } from "lucide-react";
+import { ClipboardList, Loader2 } from "lucide-react";
+import { toast } from "react-hot-toast";
+import BucketListCard from "../components/BucketListCard";
 import "../styles/HomePage.css";
 
 type Task = {
@@ -10,9 +12,18 @@ type Task = {
   completed: boolean;
 };
 
+interface MentorProfile {
+  fullName: string;
+  profile_pic: string;
+  email: string;
+  accountType: string;
+  [key: string]: any; // Allow for additional properties
+}
+
 type BucketList = {
   mentor_name: string;
   tasks: Task[];
+  mentor_profile?: MentorProfile;
 };
 
 const BucketListPage = () => {
@@ -20,18 +31,24 @@ const BucketListPage = () => {
   const [bucketLists, setBucketLists] = useState<BucketList[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [newTask, setNewTask] = useState("");
-  const [adding, setAdding] = useState(false);
   const [completing, setCompleting] = useState<string | null>(null);
+  const [sortedByCompletion, setSortedByCompletion] = useState<boolean>(false);
+  const [showOnlyMyGroup, setShowOnlyMyGroup] = useState<boolean>(false);
 
   // Fetch all bucket lists
   const fetchBucketLists = async () => {
     setLoading(true);
     setError(null);
     try {
-      // First get all mentors
+      // First get all mentors with their profile data
       const mentorsRes = await axiosInstance.get("/profile/role/Mentor");
       const mentors = mentorsRes.data;
+      
+      // Create a map of mentor names to their profile data for quick lookup
+      const mentorProfiles: Record<string, MentorProfile> = {};
+      mentors.forEach((mentor: MentorProfile) => {
+        mentorProfiles[mentor.fullName] = mentor;
+      });
 
       // Then get bucket list for each mentor
       const bucketListsPromises = mentors.map(async (mentor: any) => {
@@ -39,7 +56,10 @@ const BucketListPage = () => {
           const res = await axiosInstance.get(
             `/bucketlist/${encodeURIComponent(mentor.fullName)}/bucket_lists`
           );
-          return res.data;
+          // Attach the mentor's profile data to the bucket list
+          const bucketList = res.data;
+          bucketList.mentor_profile = mentor;
+          return bucketList;
         } catch (err) {
           console.error(`Error fetching bucket list for ${mentor.fullName}:`, err);
           return null;
@@ -49,6 +69,7 @@ const BucketListPage = () => {
       const bucketLists = (await Promise.all(bucketListsPromises)).filter(
         (list): list is BucketList => list !== null
       );
+      console.log("Bucket lists with profiles:", bucketLists);
       setBucketLists(bucketLists);
     } catch (err: any) {
       setError(
@@ -66,20 +87,19 @@ const BucketListPage = () => {
   }, [authUser]);
 
   // Add a new task
-  const handleAddTask = async (mentorName: string) => {
-    if (!newTask.trim()) return;
-    setAdding(true);
+  const handleAddTask = async (mentorName: string, description: string) => {
     try {
       await axiosInstance.post(
         `/bucketlist/${encodeURIComponent(mentorName)}/bucket_lists?user_email=${authUser.email}`,
-        { description: newTask, completed: false }
+        { description, completed: false }
       );
-      setNewTask("");
+      toast.success("New task added to bucket list!");
       fetchBucketLists();
-    } catch (err) {
-      alert("Failed to add task.");
-    } finally {
-      setAdding(false);
+      return true;
+    } catch (err: any) {
+      console.error("Error adding task:", err.response?.data || err);
+      toast.error(err.response?.data?.detail || "Failed to add task.");
+      return false;
     }
   };
 
@@ -87,199 +107,217 @@ const BucketListPage = () => {
   const handleToggleTaskCompletion = async (mentorName: string, taskId: string, currentStatus: boolean) => {
     setCompleting(taskId);
     try {
-      await axiosInstance.put(
+      console.log("Toggling task completion:", {
+        mentorName,
+        taskId,
+        currentStatus,
+        userEmail: authUser.email
+      });
+      
+      const response = await axiosInstance.put(
         `/bucketlist/${encodeURIComponent(mentorName)}/bucket_lists/toggle/${taskId}?user_email=${authUser.email}`,
         { completed: !currentStatus }
       );
+      
+      console.log("Toggle response:", response.data);
+      
+      // Show a different toast message based on completed status
+      if (!currentStatus) {
+        // Task is being completed
+        toast.success("Task completed! 🎉");
+        // Add a separate toast for the leaderboard refresh reminder
+        setTimeout(() => {
+          toast("Remember to refresh the leaderboard to see updated points!", {
+            icon: '🏆',
+            duration: 5000
+          });
+        }, 1000);
+      } else {
+        // Task is being marked as incomplete
+        toast.success("Task marked as incomplete");
+      }
+      
       fetchBucketLists();
-    } catch (err) {
-      alert("Failed to toggle task completion.");
+    } catch (err: any) {
+      console.error("Error toggling task:", err.response?.data || err);
+      toast.error(err.response?.data?.detail || "Failed to toggle task completion.");
     } finally {
       setCompleting(null);
     }
   };
 
+  // Helper function to calculate bucket list completion percentage
+  const getBucketListCompletionPercent = (list: BucketList) => {
+    if (!list.tasks || list.tasks.length === 0) return 0;
+    const completedTasks = list.tasks.filter(task => task.completed).length;
+    return (completedTasks / list.tasks.length) * 100;
+  };
+
+  // Get ordered bucket lists based on user preferences
+  const getOrderedBucketLists = () => {
+    let lists = [...bucketLists];
+    
+    // Filter to only show user's group if option is selected
+    if (showOnlyMyGroup) {
+      lists = lists.filter(list => 
+        list.mentor_name === authUser.mentor_name || 
+        list.mentor_name === authUser.fullName
+      );
+    }
+    
+    // Sort by completion percentage if option is selected
+    if (sortedByCompletion) {
+      lists.sort((a, b) => 
+        getBucketListCompletionPercent(b) - getBucketListCompletionPercent(a)
+      );
+    }
+    
+    return lists;
+  };
+
+  // Filter lists to user's group only
+  const myGroupList = bucketLists.filter(list => 
+    list.mentor_name === authUser.mentor_name || 
+    list.mentor_name === authUser.fullName
+  );
+  
+  // Check if sorting option should be available
+  const shouldShowSortOption = !showOnlyMyGroup || myGroupList.length > 1;
+
   if (loading) {
     return (
-      <div className="flex justify-center items-center min-h-60">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2" style={{ borderColor: "#00fff2" }}></div>
+      <div className="flex flex-col items-center justify-center min-h-60 gap-4 py-16">
+        <Loader2 className="h-12 w-12 text-[#00fff2] animate-spin" />
+        <p className="text-[#00fff2] font-['Press_Start_2P']">Loading bucket lists...</p>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="text-center py-8">
-        <p className="header">{error}</p>
+      <div className="text-center py-16 px-4">
+        <div className="max-w-2xl mx-auto bg-[rgba(118,10,145,0.3)] p-8 rounded-lg border border-[#760a91]">
+          <h2 className="text-[#ff0055] text-xl font-['Press_Start_2P'] mb-4">Error Loading Bucket Lists</h2>
+          <p className="text-[#00fff2] font-['Press_Start_2P'] text-sm">{error}</p>
+          <button 
+            onClick={fetchBucketLists}
+            className="mt-6 bg-[#00fff2] text-[#1a1a2e] px-6 py-3 rounded-lg font-['Press_Start_2P'] text-sm hover:bg-[#ffcc00] transition-colors"
+          >
+            Try Again
+          </button>
+        </div>
       </div>
     );
   }
+
+  const orderedBucketLists = getOrderedBucketLists();
 
   return (
     <div className="home">
       {/* Header Card */}
       <div className="cover" style={{ minHeight: "30vh", marginTop: "2rem"}}>
-        <ClipboardList size={48} style={{ color: "var(--c3)", textShadow: "0 0 8px var(--c2)" , margin: "0 0 1rem 0" }} />
-        <h1 className="header" style={{ textAlign: "center", margin: 0 }}>
+        <ClipboardList size={48} className="text-[var(--c3)] drop-shadow-[0_0_8px_var(--c2)] mb-4" />
+        <h1 className="header text-center m-0">
           Group Bucket Lists
         </h1>
-        <p className="desc" style={{ textAlign: "center", fontSize: "1.2rem", margin: 0, padding: "1.5rem" }}>
+        <p className="desc text-center text-xl m-0 px-6 py-6">
           Track progress and celebrate completed goals across all mentor groups!
         </p>
       </div>
 
-      {/* Bucket Lists */}
-      {bucketLists.map((bucketList) => {
-        const isOwnMentorList = authUser.mentor_name === bucketList.mentor_name || authUser.fullName === bucketList.mentor_name;
-        const canEdit = authUser.accountType === "mentor" && isOwnMentorList;
-        const canAdd = isOwnMentorList;
-
-        return (
-          <div
-            key={bucketList.mentor_name}
-            style={{
-              background: "rgba(26,26,46,0.95)",
-              borderRadius: "1rem",
-              boxShadow: "0 0 24px #760a91, 0 0 48px #00fff2",
-              padding: "2rem",
-              margin: "1rem 0",
-              width: "100%",
-              maxWidth: "600px",
-            }}
-          >
-            <p className="header" style={{ color: "#00fff2", fontSize: "1.5rem", marginBottom: "1.5rem", marginTop: "1.5rem"}}>
-              {bucketList.mentor_name}'s Group Bucket List
-            </p>
-
-            {/* Add Task (Only for own mentor's list) */}
-            {canAdd && (
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "1rem",
-                  marginBottom: "2rem",
-                }}
+      {/* Display Options */}
+      <div className="max-w-6xl mx-auto px-4 mb-6">
+        <div className="bg-[rgba(26,26,46,0.7)] p-4 rounded-lg flex flex-wrap gap-4 justify-center items-center">
+          <div className="flex items-center gap-4">
+            {shouldShowSortOption && (
+              <button
+                onClick={() => setSortedByCompletion(!sortedByCompletion)}
+                className={`px-4 py-2 rounded-lg font-['Press_Start_2P'] text-xs transition-colors ${
+                  sortedByCompletion 
+                  ? "bg-[#00fff2] text-[#1a1a2e]" 
+                  : "bg-[#23234d] text-[#00fff2] hover:bg-[#00fff230]"
+                }`}
               >
-                <input
-                  type="text"
-                  value={newTask}
-                  onChange={(e) => setNewTask(e.target.value)}
-                  placeholder="Add a new task..."
-                  style={{
-                    flex: 1,
-                    fontFamily: "'Press Start 2P'",
-                    fontSize: "1rem",
-                    padding: "0.75rem",
-                    borderRadius: "0.5rem",
-                    border: "2px solid #00fff2",
-                    background: "#23234d",
-                    color: "#00fff2",
-                    outline: "none",
-                  }}
-                  disabled={adding}
-                />
-                <button
-                  onClick={() => handleAddTask(bucketList.mentor_name)}
-                  disabled={adding || !newTask.trim()}
-                  style={{
-                    background: "#ffcc00",
-                    color: "#760a91",
-                    border: "none",
-                    borderRadius: "0.5rem",
-                    padding: "0.75rem 1.5rem",
-                    fontFamily: "'Press Start 2P'",
-                    fontSize: "1rem",
-                    cursor: "pointer",
-                    boxShadow: "0 0 8px #00fff2",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "0.5rem",
-                    opacity: adding || !newTask.trim() ? 0.6 : 1,
-                  }}
-                >
-                  <PlusCircle size={20} />
-                  {adding ? "Adding..." : "Add"}
-                </button>
-              </div>
+                {sortedByCompletion ? "✓ Sorted by Completion" : "Sort by Completion"}
+              </button>
             )}
-
-            {/* Task List */}
-            {(!bucketList.tasks || !bucketList.tasks.length) ? (
-              <div className="text-center" style={{ color: "#00fff2", fontFamily: "'Press Start 2P'", fontSize: "1.2rem" }}>
-                No tasks in this bucket list yet.
-              </div>
-            ) : (
-              <ul style={{ listStyle: "none", padding: 0, width: "100%" }}>
-                {bucketList.tasks.map((task) => (
-                  <li
-                    key={task.id}
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      marginBottom: "2rem",
-                      background: task.completed ? "linear-gradient(90deg, #00fff2 60%, #760a91 100%)" : "#23234d",
-                      color: task.completed ? "#fff" : "#ffcc00",
-                      borderRadius: "0.5rem",
-                      padding: "1.25rem 1rem",
-                      fontFamily: "'Press Start 2P'",
-                      fontSize: "0.95rem",
-                      textDecoration: task.completed ? "line-through" : "none",
-                      boxShadow: task.completed ? "0 0 16px #00fff2" : "none",
-                      minHeight: "60px",
-                    }}
-                  >
-                    {canEdit && (
-                      <span style={{ marginRight: "1.5rem" }}>
-                        <button
-                          onClick={() => handleToggleTaskCompletion(bucketList.mentor_name, task.id, task.completed)}
-                          disabled={!!completing}
-                          style={{
-                            background: "none",
-                            border: "none",
-                            cursor: "pointer",
-                            padding: 0,
-                            margin: 0,
-                            outline: "none",
-                          }}
-                          title={task.completed ? "Mark as incomplete" : "Mark as complete"}
-                        >
-                          {task.completed ? (
-                            <CheckCircle2 size={24} style={{ color: "#ffcc00", filter: "drop-shadow(0 0 6px #00fff2)" }} />
-                          ) : (
-                            <Circle size={24} style={{ color: "#00fff2" }} />
-                          )}
-                        </button>
-                      </span>
-                    )}
-                    <span style={{ flex: 1, wordBreak: "break-word" }}>{task.description}</span>
-                    {task.completed && (
-                      <span
-                        style={{
-                          marginLeft: "1rem",
-                          background: "#ffcc00",
-                          color: "#760a91",
-                          borderRadius: "0.25rem",
-                          padding: "0.25rem 0.75rem",
-                          fontSize: "0.8rem",
-                          boxShadow: "0 0 8px #00fff2",
-                        }}
-                      >
-                        Completed
-                      </span>
-                    )}
-                    {completing === task.id && (
-                      <span style={{ marginLeft: "1rem" }}>
-                        <div className="animate-spin rounded-full h-5 w-5 border-b-2" style={{ borderColor: "#00fff2" }}></div>
-                      </span>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            )}
+            
+            <button
+              onClick={() => setShowOnlyMyGroup(!showOnlyMyGroup)}
+              className={`px-4 py-2 rounded-lg font-['Press_Start_2P'] text-xs transition-colors ${
+                showOnlyMyGroup 
+                ? "bg-[#ffcc00] text-[#1a1a2e]" 
+                : "bg-[#23234d] text-[#ffcc00] hover:bg-[#ffcc0030]"
+              }`}
+            >
+              {showOnlyMyGroup ? "✓ Showing My Group Only" : "Show My Group Only"}
+            </button>
           </div>
-        );
-      })}
+        </div>
+      </div>
+
+      {/* Bucket List Count */}
+      <div className="max-w-6xl mx-auto px-4 mb-8">
+        <div className="flex justify-center">
+          <div className="inline-flex items-center gap-2 px-4 py-2 bg-[rgba(26,26,46,0.7)] rounded-full">
+            <span className="flex items-center justify-center w-6 h-6 bg-[#00fff2] text-[#1a1a2e] rounded-full font-bold">
+              {orderedBucketLists.length}
+            </span>
+            <span className="text-[#00fff2] font-['Press_Start_2P'] text-xs">
+              Bucket List{orderedBucketLists.length !== 1 ? 's' : ''} Found
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* Bucket Lists */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-5xl mx-auto px-4 py-8 items-stretch">
+        {orderedBucketLists.length === 0 ? (
+          <div className="col-span-full text-center py-12 bg-[rgba(26,26,46,0.7)] rounded-lg">
+            <p className="text-[#00fff2] font-['Press_Start_2P'] text-lg mb-4">
+              {showOnlyMyGroup ? "You don't have a group bucket list yet." : "No bucket lists found."}
+            </p>
+            <p className="text-[#ffcc00] font-['Press_Start_2P'] text-sm">
+              {showOnlyMyGroup 
+                ? "Ask your mentor to create one!" 
+                : "Try refreshing or adjusting your filters."}
+            </p>
+          </div>
+        ) : (
+          orderedBucketLists.map((bucketList, index) => {
+            // Check if user is a mentor (case insensitive check)
+            const isMentor = 
+              authUser.accountType?.toLowerCase() === "mentor" || 
+              authUser.accountType?.toLowerCase() === "mentors" ||
+              authUser.role?.toLowerCase() === "mentor" ||
+              authUser.role?.toLowerCase() === "mentors";
+              
+            // More robust check if this is the mentor's own list
+            const isOwnMentorList = 
+              // Direct name match (for mentors)
+              bucketList.mentor_name === authUser.fullName || 
+              // Normalized name match (lowercase comparison)
+              bucketList.mentor_name.toLowerCase() === authUser.fullName?.toLowerCase() ||
+              // Student's assigned mentor matches this list
+              bucketList.mentor_name === authUser.mentor_name || 
+              // Normalized student's assigned mentor matches
+              bucketList.mentor_name.toLowerCase() === authUser.mentor_name?.toLowerCase();
+            
+            return (
+              <div 
+                key={bucketList.mentor_name}
+                className={orderedBucketLists.length === 1 ? "col-span-full flex justify-center" : ""}
+              >
+                <div className={orderedBucketLists.length === 1 ? "max-w-sm w-full" : "w-full h-full"}>
+                  <BucketListCard
+                    bucketList={bucketList}
+                  />
+                </div>
+              </div>
+            );
+          })
+        )}
+      </div>
     </div>
   );
 };
