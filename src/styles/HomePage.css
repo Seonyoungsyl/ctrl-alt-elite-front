@@ -29,10 +29,10 @@ body {
 .cover {
     display: flex;
     flex-direction: column;
-    align-items: center;  /* Centers items horizontally */
-    justify-content: center;  /* Centers items vertically */
-    min-height: 100vh;  /* Takes up the full height of the viewport */
-    text-align: center;  /* Center text horizontally */
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    text-align: center;
 }
 
 .home h1 {
@@ -49,7 +49,7 @@ body {
         -9px 9px 0 var(--c2),     
         9px 9px 0 var(--c2);
 
-    color: var(--c3);  /* Text color */
+    color: var(--c3);
     font-family: 'Press Start 2P';
 }
 
@@ -67,7 +67,7 @@ h1.header {
         -5px 5px 0 var(--c2),     
         5px 5px 0 var(--c2);
 
-    color: var(--c3);  /* Text color */
+    color: var(--c3);
     font-family: 'Press Start 2P';
 }
 
@@ -82,7 +82,7 @@ h1.header {
 .about {
     display: flex;
     flex-direction: column;
-    align-items: center;  /* Centers items horizontally */
+    align-items: center;
     min-height: 100vh;
     margin-top: 2rem;
 }
@@ -103,7 +103,7 @@ h1.header {
         -9px 9px 0 var(--c2),     
         9px 9px 0 var(--c2);
 
-    color: var(--c3);  /* Text color */
+    color: var(--c3);
     font-family: 'Press Start 2P';
 }
 
@@ -115,7 +115,7 @@ h1.header {
     padding-bottom: 0;
     line-height: 3rem;
 
-    color: var(--c3);  /* text color */
+    color: var(--c3);
     font-family: 'Press Start 2P';
 }
 
@@ -127,7 +127,7 @@ h1.header {
     margin: 1rem 0 0 0;
     padding-bottom: 0;
     line-height: 3rem;
-    color: white;  /* text color */
+    color: white;
     font-family: "Quantico";
 }
 
@@ -150,12 +150,12 @@ html {
         -9px 9px 0 var(--c2),     
         9px 9px 0 var(--c2);
 
-    color: var(--c3);  /* Text color */
+    color: var(--c3);
     font-family: 'Press Start 2P';
 }
 
 .highlighted {
-    color: var(--c2);  /* text color */
+    color: var(--c2);
 }
 
 .manual-card {
@@ -178,6 +178,6 @@ html {
     font-size: 1.5rem;
     padding-bottom: 0;
     line-height: 3rem;
-    color: white;  /* text color */
+    color: white;
     font-family: "Quantico";
 }
