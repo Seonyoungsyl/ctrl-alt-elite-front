@@ -31,7 +31,7 @@ function Home() {
                         Our web app allows you to create and manage your mentor group's bucket list, 
                         whether it's for productivity goals, fun team bonding activities, or both! 
                         Each group can add their unique tasks and challenges to their bucket list, 
-                        and by completing them, you'll one point per item. 
+                        and by completing them, you'll ten points per item. 
                         Not only can you track your group’s progress, but you can also explore other 
                         groups' bucket lists for inspiration or even some friendly competition!
                     </p>
@@ -61,7 +61,7 @@ function Home() {
                         <br /><br /> 
 
                         <span className="highlighted">🪙 EARN POINTS: </span>
-                        Every time you complete a task, you earn one point.
+                        Every time you complete a task, you earn ten points.
                         <br /><br /> 
 
                         <span className="highlighted">✨ COMPETE & INSPIRE: </span>
