@@ -86,9 +86,6 @@ const SignupPage = () => {
                 <option value="Mentor" className="text-gray-700">
                   Mentor
                 </option>
-                <option value="Admin" className="text-gray-700">
-                  Admin
-                </option>
               </select>
               <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
                 <ChevronDown size={18} className="text-gray-400" />
